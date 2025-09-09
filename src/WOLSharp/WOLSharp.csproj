@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\..\LICENSE" Pack="true" PackagePath="" Visible="false" />
+		<None Include="..\..\logo.png" Pack="true" PackagePath="" Visible="false" />
+		<None Include="..\..\README.md" Pack="true" PackagePath="" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<PackageId>WOLSharp</PackageId>
+		<Product>WOLSharp</Product>
+		<AssemblyTitle>WOLSharp</AssemblyTitle>
+		<Authors>tolzy88</Authors>
+		<Copyright>©2025 Steven Tolzmann</Copyright>
+		<Description>Interop helpers for sending Wake‑on‑LAN (WOL) magic packets to wake machines on your network.</Description>
+		<Version>1.0.2</Version>
+		<AssemblyVersion>1.0.2.0</AssemblyVersion>
+		<FileVersion>1.0.2.0</FileVersion>
+		<PackageProjectUrl>https://github.com/tolzy88/WOLSharp</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/tolzy88/WOLSharp.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>logo.png</PackageIcon>
+		<IncludeContentInPack>true</IncludeContentInPack>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+</Project>
