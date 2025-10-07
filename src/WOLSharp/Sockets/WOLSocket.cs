@@ -26,12 +26,7 @@ namespace WOLSharp.Sockets
     /// </remarks>
     public class WOLSocket : Socket
     {
-        private static readonly IEnumerable<IPEndPoint> _endpoints = new IPEndPoint[]
-        {
-            new IPEndPoint(IPAddress.Broadcast, 0), // legacy
-            new IPEndPoint(IPAddress.Broadcast, 7), // echo
-            new IPEndPoint(IPAddress.Broadcast, 9) // discard
-        };
+        private static readonly IPEndPoint _endpoint = new IPEndPoint(IPAddress.Broadcast, 9); // Default WOL Endpoint (UDP Port 9) as recognized by most devices/Wireshark
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WOLSocket"/> class for IPv4 UDP broadcast.
@@ -182,26 +177,19 @@ namespace WOLSharp.Sockets
         private void Broadcast_Internal(PhysicalAddress mac)
         {
             byte[] magicPacket = BuildMagicPacket(mac); // Get magic packet byte array based on MAC Address
-            foreach (var ep in _endpoints) // Broadcast to *all* WOL Endpoints
-            {
-                this.SendTo(magicPacket, ep); // Broadcast magic packet
-            }
+            this.SendTo(magicPacket, _endpoint); // Broadcast magic packet
         }
 
         private async Task BroadcastAsync_Internal(PhysicalAddress mac)
         {
             byte[] magicPacket = BuildMagicPacket(mac); // Get magic packet byte array based on MAC Address
-            var tasks = new List<Task>(capacity: 4);
             using (var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(3))) // Timeout after 3 seconds -> UDP doesn't wait for a response, so this should never happen
             {
-                foreach (var ep in _endpoints) // Broadcast to *all* WOL Endpoints
-                {
-                    tasks.Add(this.SendToAsync(
-                        buffer: magicPacket, 
-                        remoteEP: ep, 
-                        cancellationToken: cts.Token)); // Broadcast magic packet asynchronously
-                }
-                await Task.WhenAll(tasks).ConfigureAwait(false); // Await all send tasks
+                await this.SendToAsync(
+                    buffer: magicPacket,
+                    remoteEP: _endpoint,
+                    cancellationToken: cts.Token)
+                    .ConfigureAwait(false); // Broadcast magic packet asynchronously
             }
         }
 

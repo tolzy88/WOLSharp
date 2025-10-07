@@ -131,7 +131,6 @@ namespace WOLSharp_Tests
                 await wol.BroadcastAsync(mac);
 
                 // Verify magic packet structure matches BuildMagicPacket(pa)
-                // (No UDP check here; UDP tests below use cross-version inputs.)
                 Assert.Equal(102, expected.Length);
             }
             else
@@ -142,12 +141,11 @@ namespace WOLSharp_Tests
         }
 
         [Fact]
-        public void Broadcast_SendsUdpToPorts_7_And_9_WithCorrectPayload()
+        public void Broadcast_SendsUdpToPort9_WithCorrectPayload()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return;
 
-            using var listener7 = CreateUdpListener(7);
             using var listener9 = CreateUdpListener(9);
 
             var expected = BuildExpectedMagicPacket(SampleMacHyphen);
@@ -157,20 +155,18 @@ namespace WOLSharp_Tests
                 wol.Broadcast(SampleMacHyphen);
             }
 
-            var received = ReceiveFromBoth(listener7, listener9, expected.Length, TimeSpan.FromSeconds(2));
+            var received = ReceiveN(listener9, 1, TimeSpan.FromSeconds(2), expected.Length).GetAwaiter().GetResult();
 
-            Assert.Equal(2, received.Count);
-            foreach (var buf in received)
-                Assert.True(expected.SequenceEqual(buf), "Received datagram does not match expected magic packet.");
+            Assert.Single(received);
+            Assert.True(expected.SequenceEqual(received[0]), "Received datagram does not match expected magic packet.");
         }
 
         [Fact]
-        public async Task BroadcastAsync_SendsUdpToPorts_7_And_9_WithCorrectPayload()
+        public async Task BroadcastAsync_SendsUdpToPort9_WithCorrectPayload()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return;
 
-            using var listener7 = CreateUdpListener(7);
             using var listener9 = CreateUdpListener(9);
 
             var expected = BuildExpectedMagicPacket(SampleMacPlain);
@@ -180,72 +176,76 @@ namespace WOLSharp_Tests
                 await wol.BroadcastAsync(SampleMacPlain);
             }
 
-            var received = ReceiveFromBoth(listener7, listener9, expected.Length, TimeSpan.FromSeconds(2));
-            Assert.Equal(2, received.Count);
-            foreach (var buf in received)
-                Assert.True(expected.SequenceEqual(buf), "Received datagram does not match expected magic packet.");
+            var received = await ReceiveN(listener9, 1, TimeSpan.FromSeconds(2), expected.Length);
+            Assert.Single(received);
+            Assert.True(expected.SequenceEqual(received[0]), "Received datagram does not match expected magic packet.");
         }
 
         [Fact]
-        public async Task Broadcast_MultipleAddresses_SendsToAll()
+        public async Task Broadcast_MultipleAddresses_SendsAllOnPort9()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return;
 
-            using var listener7 = CreateUdpListener(7);
             using var listener9 = CreateUdpListener(9);
 
-            var macs = new[] { SampleMacHyphen, SampleMacPlain };
+            var macs = new[] { SampleMacHyphen, SampleMacPlain }; // Same MAC in two formats
             var expected1 = BuildExpectedMagicPacket(macs[0]);
             var expected2 = BuildExpectedMagicPacket(macs[1]);
+            bool identical = expected1.SequenceEqual(expected2);
 
             using (var wol = new WOLSocket())
             {
                 wol.Broadcast(macs);
             }
 
-            var recv7Task = ReceiveN(listener7, 2, TimeSpan.FromSeconds(3), expected1.Length);
-            var recv9Task = ReceiveN(listener9, 2, TimeSpan.FromSeconds(3), expected1.Length);
-            await Task.WhenAll(recv7Task, recv9Task);
-            var received = recv7Task.Result.Concat(recv9Task.Result).ToList();
+            var received = await ReceiveN(listener9, 2, TimeSpan.FromSeconds(3), expected1.Length);
 
-            Assert.Equal(4, received.Count);
-            foreach (var buf in received)
+            Assert.Equal(2, received.Count);
+            if (identical)
             {
-                bool match = expected1.SequenceEqual(buf) || expected2.SequenceEqual(buf);
-                Assert.True(match, "Received datagram did not match any expected magic packet.");
+                // All packets should match expected1
+                Assert.All(received, b => Assert.True(expected1.SequenceEqual(b), "Received datagram did not match expected magic packet."));
+            }
+            else
+            {
+                int match1 = received.Count(b => expected1.SequenceEqual(b));
+                int match2 = received.Count(b => expected2.SequenceEqual(b));
+                Assert.True(match1 == 1 && match2 == 1, "Did not receive exactly one datagram for each MAC address.");
             }
         }
 
         [Fact]
-        public async Task BroadcastAsync_MultiplePhysicalAddresses_SendsToAll()
+        public async Task BroadcastAsync_MultiplePhysicalAddresses_SendsAllOnPort9()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return;
 
-            using var listener7 = CreateUdpListener(7);
             using var listener9 = CreateUdpListener(9);
 
-            var pa1 = PhysicalAddress.Parse(SampleMacPlain);
-            var pa2 = PhysicalAddress.Parse(SampleMacHyphen);
+            var pa1 = PhysicalAddress.Parse(SampleMacPlain);   // Same underlying MAC
+            var pa2 = PhysicalAddress.Parse(SampleMacHyphen);  // Same underlying MAC
             var expected1 = (byte[])GetBuildMagicPacket().Invoke(null, new object[] { pa1 })!;
             var expected2 = (byte[])GetBuildMagicPacket().Invoke(null, new object[] { pa2 })!;
+            bool identical = expected1.SequenceEqual(expected2);
 
             using (var wol = new WOLSocket())
             {
                 await wol.BroadcastAsync(new[] { pa1, pa2 });
             }
 
-            var recv7Task = ReceiveN(listener7, 2, TimeSpan.FromSeconds(3), expected1.Length);
-            var recv9Task = ReceiveN(listener9, 2, TimeSpan.FromSeconds(3), expected1.Length);
-            await Task.WhenAll(recv7Task, recv9Task);
-            var received = recv7Task.Result.Concat(recv9Task.Result).ToList();
+            var received = await ReceiveN(listener9, 2, TimeSpan.FromSeconds(3), expected1.Length);
 
-            Assert.Equal(4, received.Count);
-            foreach (var buf in received)
+            Assert.Equal(2, received.Count);
+            if (identical)
             {
-                bool match = expected1.SequenceEqual(buf) || expected2.SequenceEqual(buf);
-                Assert.True(match, "Received datagram did not match any expected magic packet.");
+                Assert.All(received, b => Assert.True(expected1.SequenceEqual(b), "Received datagram did not match expected magic packet."));
+            }
+            else
+            {
+                int match1 = received.Count(b => expected1.SequenceEqual(b));
+                int match2 = received.Count(b => expected2.SequenceEqual(b));
+                Assert.True(match1 == 1 && match2 == 1, "Did not receive exactly one datagram for each MAC address.");
             }
         }
 
@@ -257,31 +257,6 @@ namespace WOLSharp_Tests
             client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             client.Client.Bind(new IPEndPoint(IPAddress.Any, port));
             return client;
-        }
-
-        private static List<byte[]> ReceiveFromBoth(UdpClient a, UdpClient b, int expectedBytes, TimeSpan timeout)
-        {
-            var deadline = DateTime.UtcNow + timeout;
-
-            static byte[]? TryGet(UdpClient c, TimeSpan remaining, int expectedBytes)
-            {
-                var recv = c.ReceiveAsync();
-                var done = Task.WhenAny(recv, Task.Delay(remaining)).GetAwaiter().GetResult();
-                if (done == recv)
-                {
-                    var result = recv.GetAwaiter().GetResult();
-                    return result.Buffer?.Length == expectedBytes ? result.Buffer : result.Buffer ?? Array.Empty<byte>();
-                }
-                return null;
-            }
-
-            var remaining = deadline - DateTime.UtcNow;
-            var r1 = TryGet(a, remaining, expectedBytes);
-
-            remaining = deadline - DateTime.UtcNow;
-            var r2 = TryGet(b, remaining, expectedBytes);
-
-            return new[] { r1, r2 }.Where(bf => bf is not null).Select(bf => bf!).ToList();
         }
 
         private static async Task<List<byte[]>> ReceiveN(UdpClient client, int count, TimeSpan timeout, int expectedBytes)
