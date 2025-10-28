@@ -17,9 +17,6 @@
 		<Authors>tolzy88</Authors>
 		<Copyright>©2025 Steven Tolzmann</Copyright>
 		<Description>Interop helpers for sending Wake‑on‑LAN (WOL) magic packets to wake machines on your network.</Description>
-		<Version>1.1.0</Version>
-		<AssemblyVersion>1.1.0.0</AssemblyVersion>
-		<FileVersion>1.1.0.0</FileVersion>
 		<PackageProjectUrl>https://github.com/tolzy88/WOLSharp</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/tolzy88/WOLSharp.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
