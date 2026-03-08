@@ -24,9 +24,10 @@ namespace WOLSharp.Sockets
     /// This socket is configured for IPv4 UDP broadcast and will attempt to send the magic packet to the broadcast
     /// address on common WOL ports (0, 7, and 9).
     /// </remarks>
-    public class WOLSocket : Socket
+    public sealed class WOLSocket : IDisposable
     {
         private static readonly IPEndPoint _endpoint = new IPEndPoint(IPAddress.Broadcast, 9); // Default WOL Endpoint (UDP Port 9) as recognized by most devices/Wireshark
+        private readonly Socket _socket;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WOLSocket"/> class for IPv4 UDP broadcast.
@@ -35,9 +36,12 @@ namespace WOLSharp.Sockets
         /// The socket is created with <see cref="SocketType.Dgram"/> and <see cref="ProtocolType.Udp"/> and has
         /// <see cref="Socket.EnableBroadcast"/> set to <see langword="true"/> for compatibility with broadcast scenarios.
         /// </remarks>
-        public WOLSocket() : base(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+        public WOLSocket()
         {
-            EnableBroadcast = true; // Enable broadcast, required for macOS compatibility
+            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+            {
+                EnableBroadcast = true // Enable broadcast, required for macOS compatibility
+            };
         }
 
         /// <summary>
@@ -177,7 +181,7 @@ namespace WOLSharp.Sockets
         private void Broadcast_Internal(PhysicalAddress mac)
         {
             byte[] magicPacket = BuildMagicPacket(mac); // Get magic packet byte array based on MAC Address
-            this.SendTo(magicPacket, _endpoint); // Broadcast magic packet
+            _socket.SendTo(magicPacket, _endpoint); // Broadcast magic packet
         }
 
         private async Task BroadcastAsync_Internal(PhysicalAddress mac)
@@ -185,7 +189,7 @@ namespace WOLSharp.Sockets
             byte[] magicPacket = BuildMagicPacket(mac); // Get magic packet byte array based on MAC Address
             using (var cts = new CancellationTokenSource(delay: TimeSpan.FromSeconds(3))) // Timeout after 3 seconds -> UDP doesn't wait for a response, so this should never happen
             {
-                await this.SendToAsync(
+                await _socket.SendToAsync(
                     buffer: magicPacket,
                     remoteEP: _endpoint,
                     cancellationToken: cts.Token)
@@ -208,6 +212,14 @@ namespace WOLSharp.Sockets
                 Buffer.BlockCopy(macBytes, 0, magicPacket, i, 6);
             }
             return magicPacket; // 102 Byte Magic Packet
+        }
+
+        /// <summary>
+        /// Releases all resources used by the current instance of the class.
+        /// </summary>
+        public void Dispose()
+        {
+            _socket.Dispose();
         }
 
         #endregion

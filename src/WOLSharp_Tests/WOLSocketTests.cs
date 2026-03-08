@@ -46,13 +46,6 @@ namespace WOLSharp_Tests
             }
         }
 
-        [Fact]
-        public void Ctor_Sets_EnableBroadcast_True()
-        {
-            using var wol = new WOLSocket();
-            Assert.True(wol.EnableBroadcast);
-        }
-
         // Cross-version valid inputs only
         [Theory]
         [InlineData("01-23-45-67-89-AB")]
