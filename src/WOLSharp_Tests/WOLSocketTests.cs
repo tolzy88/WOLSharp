@@ -134,7 +134,7 @@ namespace WOLSharp_Tests
         }
 
         [Fact]
-        public void Broadcast_SendsUdpToPort9_WithCorrectPayload()
+        public async Task Broadcast_SendsUdpToPort9_WithCorrectPayload()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return;
@@ -148,7 +148,7 @@ namespace WOLSharp_Tests
                 wol.Broadcast(SampleMacHyphen);
             }
 
-            var received = ReceiveN(listener9, 1, TimeSpan.FromSeconds(2), expected.Length).GetAwaiter().GetResult();
+            var received = await ReceiveN(listener9, 1, TimeSpan.FromSeconds(2), expected.Length);
 
             Assert.Single(received);
             Assert.True(expected.SequenceEqual(received[0]), "Received datagram does not match expected magic packet.");

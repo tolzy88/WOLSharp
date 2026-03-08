@@ -18,7 +18,7 @@ namespace WOLSharp_Con
                 while (true) // Continue prompting user until no more input is received
                 {
                     Console.Write("Enter MAC Address: ");
-                    string mac = Console.ReadLine()?.Trim();
+                    string? mac = Console.ReadLine()?.Trim();
                     if (string.IsNullOrEmpty(mac))
                         break; // User is done, exit
                     try
